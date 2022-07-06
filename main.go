@@ -6,12 +6,10 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rs/cors"
 )
 
 func main() {
 	app := fiber.New()
-	app.Use(cors.Default())
 
 	configs.ConnectDB()
 
