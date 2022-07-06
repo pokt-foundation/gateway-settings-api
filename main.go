@@ -15,6 +15,4 @@ func main() {
 
 	router.SetupRoutes(app)
 	log.Fatal(app.Listen(":3000"))
-
-	app.Listen(":3000")
 }
