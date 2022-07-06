@@ -1,20 +1,22 @@
 package main
 
 import (
-	"gateway-settings-api/routes"
+	"gateway-settings-api/configs"
+	"gateway-settings-api/router"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rs/cors"
 )
 
 func main() {
 	app := fiber.New()
+	app.Use(cors.Default())
 
-	// Routes
-	routes.AddContractToAllowlistRoute(app)
+	configs.ConnectDB()
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(&fiber.Map{"data": "Hello World"})
-	})
+	router.SetupRoutes(app)
+	log.Fatal(app.Listen(":3000"))
 
 	app.Listen(":3000")
 }
