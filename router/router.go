@@ -11,7 +11,7 @@ import (
 // SetupRoutes setup router api
 func SetupRoutes(app *fiber.App) {
 	// Middleware
-	api := app.Group("/api", logger.New())
+	api := app.Group("/v1", logger.New())
 	api.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(&fiber.Map{"data": "Welcome to Gateway Settings API."})
 	})
@@ -21,6 +21,6 @@ func SetupRoutes(app *fiber.App) {
 	auth.Post("/login", handler.Login)
 
 	// Contract Allowlist
-	contractAllowlist := api.Group("/contract-allowlist")
+	contractAllowlist := api.Group("/settings")
 	contractAllowlist.Post("/add-contract", middleware.Protected(), handler.AddContractToAllowlist)
 }
