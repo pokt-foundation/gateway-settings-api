@@ -3,12 +3,13 @@ package controllers
 import (
 	"context"
 	"gateway-settings-api/configs"
+	"gateway-settings-api/models"
+	"log"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v4"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -24,7 +25,7 @@ func Login(c *fiber.Ctx) error {
 	defer cancel()
 
 	type LoginInput struct {
-		Email    string `json:"identity"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	var input LoginInput
@@ -34,41 +35,39 @@ func Login(c *fiber.Ctx) error {
 	email := input.Email
 	password := []byte(input.Password)
 
-	hashedPassword, err := bcrypt.GenerateFromPassword(password, SALT_ROUNDS)
-	if err != nil {
-		panic(err)
-	}
-
-	var userResult bson.M
+	var userResult models.User
 
 	userFilter := bson.D{{Key: "email", Value: email}}
-	err = usersCollection.FindOne(ctx, userFilter).Decode(&userResult)
+	err := usersCollection.FindOne(ctx, userFilter).Decode(&userResult)
 
 	if err != nil {
 		return err
 	}
 
-	dbHashedPassword := []byte(userResult["password"].(string))
+	dbHashedPassword := []byte(userResult.Password)
 
 	// Comparing the password with the hash
-	err = bcrypt.CompareHashAndPassword(hashedPassword, dbHashedPassword)
+	err = bcrypt.CompareHashAndPassword(dbHashedPassword, password)
 
 	if err != nil {
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}
 
-	var lbResult bson.M
+	var lbResults []models.LoadBalancer
 
-	id, _ := primitive.ObjectIDFromHex(userResult["_id"].(string))
+	lbFilter := bson.D{{Key: "user", Value: userResult.Id}}
+	cursor, err := loadBalancersCollection.Find(ctx, lbFilter)
 
-	lbFilter := bson.D{{Key: "_id", Value: id}}
-	err = usersCollection.FindOne(ctx, lbFilter).Decode(&lbResult)
-
-	if err != nil {
-		return err
+	if err = cursor.All(ctx, &lbResults); err != nil {
+		log.Fatal(err)
 	}
 
-	applicationIDs := lbResult["applicationIDs"].([]string)
+	var applicationIDs []string
+
+	for _, lb := range lbResults {
+		appIds := lb.ApplicationIDs
+		applicationIDs = append(applicationIDs, appIds...)
+	}
 
 	token := jwt.New(jwt.SigningMethodHS256)
 
