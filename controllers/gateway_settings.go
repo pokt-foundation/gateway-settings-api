@@ -18,7 +18,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var applicationsCollection *mongo.Collection = configs.GetCollection(configs.DB, "TestApplications")
+var applicationsCollection *mongo.Collection = configs.GetCollection(configs.DB, "Applications")
 var validate = validator.New()
 
 func AddContractToAllowlist(c *fiber.Ctx) error {
