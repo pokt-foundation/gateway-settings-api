@@ -16,8 +16,8 @@ import (
 
 const SALT_ROUNDS = 10
 
-var usersCollection *mongo.Collection = configs.GetCollection(configs.DB, "Users")
-var loadBalancersCollection *mongo.Collection = configs.GetCollection(configs.DB, "LoadBalancers")
+var usersCollection *mongo.Collection = configs.GetCollection(configs.DB, configs.EnvUsersCollectionName())
+var loadBalancersCollection *mongo.Collection = configs.GetCollection(configs.DB, configs.EnvLoadBalancersCollectionName())
 
 // Login get user and password
 func Login(c *fiber.Ctx) error {
