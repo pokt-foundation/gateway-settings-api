@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"gateway-settings-api/configs"
 	"gateway-settings-api/models"
 	"gateway-settings-api/responses"
@@ -16,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var applicationsCollection *mongo.Collection = configs.GetCollection(configs.DB, "TestApplications")
@@ -45,22 +45,36 @@ func AddContractToAllowlist(c *fiber.Ctx) error {
 	var allowed bool
 
 	for _, appId := range applicationIDs {
-		fmt.Println(appId.(string))
 		if appId.(string) == application.Id {
 			allowed = true
 		}
 	}
 
 	if !allowed {
-		return c.Status(http.StatusBadRequest).JSON(responses.ContractAllowlistResponse{Status: http.StatusBadRequest, Message: "This application doesn't belong to your user.", Data: nil})
+		return c.Status(http.StatusUnauthorized).JSON(responses.ContractAllowlistResponse{Status: http.StatusUnauthorized, Message: "This application doesn't belong to your user.", Data: nil})
 	}
 
 	id, _ := primitive.ObjectIDFromHex(application.Id)
 
-	filter := bson.D{{Key: "_id", Value: id}}
-	update := bson.D{{Key: "$push", Value: bson.D{{Key: "gatewaySettings.whitelistContracts", Value: bson.D{{Key: "$each", Value: application.GatewaySettings.AllowlistContracts}}}}}}
+	var operations []mongo.WriteModel
 
-	result, err := applicationsCollection.UpdateOne(ctx, filter, update)
+	for _, blockchainContractAllowlist := range application.GatewaySettings.ContractsAllowlist {
+		filter := bson.D{{Key: "_id", Value: id}, {Key: "gatewaySettings.whitelistContracts.blockchain_id", Value: blockchainContractAllowlist.BlockchainID}}
+		update := bson.D{{Key: "$push", Value: bson.D{{Key: "gatewaySettings.whitelistContracts.$.contracts", Value: bson.D{{Key: "$each", Value: blockchainContractAllowlist.Contracts}}}}}}
+
+		operation := mongo.NewUpdateOneModel()
+
+		operation.SetFilter(filter)
+		operation.SetUpdate(update)
+		operation.SetUpsert(true)
+
+		operations = append(operations, operation)
+	}
+
+	bulkOption := options.BulkWriteOptions{}
+	bulkOption.SetOrdered(true)
+
+	result, err := applicationsCollection.BulkWrite(ctx, operations, &bulkOption)
 
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(responses.ContractAllowlistResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})

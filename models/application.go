@@ -6,5 +6,10 @@ type Application struct {
 }
 
 type GatewaySettings struct {
-	AllowlistContracts []string `json:"allowlist_contracts,omitempty" validate:"required"`
+	ContractsAllowlist []BlockchainContractsAllowlist `json:"contracts_allowlist,omitempty"`
+}
+
+type BlockchainContractsAllowlist struct {
+	BlockchainID string   `json:"blockchain_id" bson:"blockchain_id"`
+	Contracts    []string `json:"contracts" bson:"contracts"`
 }
