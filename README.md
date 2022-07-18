@@ -12,8 +12,8 @@ Request
 root@pokt.network:~$ curl --location --request POST 'https://settings-api.portal.pokt.network/v1/auth/login' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-    "email": "your email",
-    "password": "password"
+    "email": "your portal.pokt.network's account email",
+    "password": "your portal.pokt.network's account password"
 }'
 ```
 
