@@ -10,6 +10,11 @@ import (
 
 // SetupRoutes setup router api
 func SetupRoutes(app *fiber.App) {
+	// Entrypoint
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.SendString("Welcome to Gateway Settings API.")
+	})
+
 	// Middleware
 	api := app.Group("/v1", logger.New())
 	api.Get("/", func(c *fiber.Ctx) error {
