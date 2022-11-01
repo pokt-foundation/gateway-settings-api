@@ -5,7 +5,6 @@ import (
 	"gateway-settings-api/middleware"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/logger"
 )
 
 // SetupRoutes setup router api
@@ -16,7 +15,7 @@ func SetupRoutes(app *fiber.App) {
 	})
 
 	// Middleware
-	api := app.Group("/v1", logger.New())
+	api := app.Group("/v1")
 	api.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(&fiber.Map{"data": "Welcome to Gateway Settings API."})
 	})

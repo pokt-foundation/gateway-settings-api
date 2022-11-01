@@ -6,6 +6,7 @@ import (
 	"gateway-settings-api/configs"
 	"gateway-settings-api/models"
 	"gateway-settings-api/responses"
+	"log"
 	"net/http"
 	"time"
 
@@ -42,6 +43,21 @@ func AddContractToAllowlist(c *fiber.Ctx) error {
 		return errors.New("applicationIDs is not an array")
 	}
 
+	id, _ := primitive.ObjectIDFromHex(application.Id)
+
+	// Does the application exist?
+	filter := bson.D{{Key: "_id", Value: id}}
+
+	var result models.Application
+	err := applicationsCollection.FindOne(ctx, filter).Decode(&result)
+
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return c.Status(http.StatusNotFound).JSON(responses.ContractAllowlistResponse{Status: http.StatusNotFound, Message: "error", Data: &fiber.Map{"data": "Application not found"}})
+		}
+		panic(err)
+	}
+
 	var allowed bool
 
 	for _, appId := range applicationIDs {
@@ -54,31 +70,45 @@ func AddContractToAllowlist(c *fiber.Ctx) error {
 		return c.Status(http.StatusUnauthorized).JSON(responses.ContractAllowlistResponse{Status: http.StatusUnauthorized, Message: "This application doesn't belong to your user.", Data: nil})
 	}
 
-	id, _ := primitive.ObjectIDFromHex(application.Id)
-
 	var operations []mongo.WriteModel
 
 	for _, blockchainContractAllowlist := range application.GatewaySettings.ContractsAllowlist {
-		filter := bson.D{{Key: "_id", Value: id}, {Key: "gatewaySettings.whitelistContracts.blockchain_id", Value: blockchainContractAllowlist.BlockchainID}}
-		update := bson.D{{Key: "$push", Value: bson.D{{Key: "gatewaySettings.whitelistContracts.$.contracts", Value: bson.D{{Key: "$each", Value: blockchainContractAllowlist.Contracts}}}}}}
+		// Does the application have this blockchain in the allowlist?
+		filter = bson.D{{Key: "_id", Value: id}, {Key: "gatewaySettings.whitelistContracts.blockchain_id", Value: blockchainContractAllowlist.BlockchainID}}
 
-		operation := mongo.NewUpdateOneModel()
+		err = applicationsCollection.FindOne(ctx, filter).Decode(&result)
 
-		operation.SetFilter(filter)
-		operation.SetUpdate(update)
-		operation.SetUpsert(true)
+		if err == mongo.ErrNoDocuments {
+			filter = bson.D{{Key: "_id", Value: id}}
+			update := bson.M{"$push": bson.M{"gatewaySettings.whitelistContracts": bson.M{"blockchain_id": blockchainContractAllowlist.BlockchainID, "contracts": blockchainContractAllowlist.Contracts}}}
 
-		operations = append(operations, operation)
+			operation := mongo.NewUpdateOneModel()
+
+			operation.SetFilter(filter)
+			operation.SetUpdate(update)
+
+			operations = append(operations, operation)
+		} else {
+			update := bson.D{{Key: "$push", Value: bson.D{{Key: "gatewaySettings.whitelistContracts.$.contracts", Value: bson.D{{Key: "$each", Value: blockchainContractAllowlist.Contracts}}}}}}
+
+			operation := mongo.NewUpdateOneModel()
+
+			operation.SetFilter(filter)
+			operation.SetUpdate(update)
+
+			operations = append(operations, operation)
+		}
 	}
 
 	bulkOption := options.BulkWriteOptions{}
 	bulkOption.SetOrdered(true)
 
-	result, err := applicationsCollection.BulkWrite(ctx, operations, &bulkOption)
+	bulkResult, bulkErr := applicationsCollection.BulkWrite(ctx, operations, &bulkOption)
 
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(responses.ContractAllowlistResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": err.Error()}})
+	if bulkErr != nil {
+		log.Printf("%v", bulkErr)
+		return c.Status(http.StatusInternalServerError).JSON(responses.ContractAllowlistResponse{Status: http.StatusInternalServerError, Message: "error", Data: &fiber.Map{"data": bulkErr.Error()}})
 	}
 
-	return c.Status(http.StatusCreated).JSON(responses.ContractAllowlistResponse{Status: http.StatusCreated, Message: "success", Data: &fiber.Map{"data": result}})
+	return c.Status(http.StatusCreated).JSON(responses.ContractAllowlistResponse{Status: http.StatusCreated, Message: "success", Data: &fiber.Map{"data": bulkResult}})
 }

@@ -2,11 +2,11 @@ package models
 
 type Application struct {
 	Id              string          `json:"id" bson:"_id"`
-	GatewaySettings GatewaySettings `json:"gateway_settings" bson:"gateway_settings"`
+	GatewaySettings GatewaySettings `json:"gateway_settings" bson:"gatewaySettings"`
 }
 
 type GatewaySettings struct {
-	ContractsAllowlist []BlockchainContractsAllowlist `json:"contracts_allowlist,omitempty"`
+	ContractsAllowlist []BlockchainContractsAllowlist `json:"contracts_allowlist" bson:"whitelistContracts"`
 }
 
 type BlockchainContractsAllowlist struct {
